@@ -107,6 +107,15 @@ def clean_str(string):
     string = re.sub(r"\s{2,}", " ", string)
     return string.strip().lower()
 
+def pad_sentences(sentence, length, padding_word="pad"):
+    """
+    Pad a sentence to a given length.
+    """
+    num_padding = length - len(sentence)
+    new_sentence = sentence + [padding_word] * num_padding
+    return new_sentence
+    
+
 def get_pretrained_wordvec_from_file(wf, dim):
     """
     Get the pre-trained word representations from local file(s).
