@@ -14,6 +14,7 @@ class SentCNN(object):
                  init_embeddings, 
                  filter_sizes, 
                  num_filters,
+                 batch_size, # only need this for dropout layer
                  embeddings_trainable=False):
         """
         :param sequence_length: The length of our sentences. Here we always pad
@@ -28,7 +29,6 @@ class SentCNN(object):
         :num_filters: The number of filters per filter size (see above).
         :embeddings_trainable: Train embeddings or not.
         """
-        
         # Placeholders for input, output and dropout
         
         # input_x_u: batch_size x sequence_length
@@ -44,8 +44,7 @@ class SentCNN(object):
                                       [None],
                                       name="input_y")
         
-        # self.dropout_keep_prob = tf.placeholder(tf.float32, 
-                                                #name="dropout_keep_prob")
+        self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
         
         self.embedding_size = np.shape(init_embeddings)[1]
         
@@ -139,18 +138,25 @@ class SentCNN(object):
         self.h_pool_flat_r = tf.reshape(self.h_pool_r, [-1, num_classes, num_filters_total])
         print "DEBUG: h_pool_flat_r -> %s" % self.h_pool_flat_r
         
-        # Add dropout
-        # with tf.name_scope("dropout"):
-        #    self.h_drop_u = tf.nn.dropout(self.h_pool_flat_u, self.dropout_keep_prob)
+        # Add dropout layer to avoid overfitting
+        with tf.name_scope("dropout"):
+            self.h_features = tf.concat(1, [self.h_pool_flat_u, self.h_pool_flat_r])
+            print "DEBUG: h_features -> %s" % self.h_features
+            self.h_features_dropped = tf.nn.dropout(self.h_features, 
+                                                        self.dropout_keep_prob, 
+                                                        noise_shape=[batch_size, 1, num_filters_total])
+
+            self.h_dropped_u = self.h_features_dropped[:, :1, :] + 0.05
+            self.h_dropped_r = self.h_features_dropped[:, 1:, :] + 0.05
         
         # cosine layer - final scores and predictions
         with tf.name_scope("cosine_layer"):
-            dot =  tf.reduce_sum(tf.mul(self.h_pool_flat_u, 
-                                        self.h_pool_flat_r), 2)
+            dot =  tf.reduce_sum(tf.mul(self.h_dropped_u, 
+                                        self.h_dropped_r), 2)
             print "DEBUG: dot -> %s" % dot
-            sqrt_u = tf.sqrt(tf.reduce_sum(self.h_pool_flat_u**2, 2))
+            sqrt_u = tf.sqrt(tf.reduce_sum(self.h_dropped_u**2, 2))
             print "DEBUG: sqrt_u -> %s" % sqrt_u
-            sqrt_r = tf.sqrt(tf.reduce_sum(self.h_pool_flat_r**2, 2))
+            sqrt_r = tf.sqrt(tf.reduce_sum(self.h_dropped_r**2, 2))
             print "DEBUG: sqrt_r -> %s" % sqrt_r
             self.cosine = dot / (sqrt_u * sqrt_r + 0.05)
             print "DEBUG: cosine -> %s" % self.cosine

@@ -39,6 +39,7 @@ def train_cnn(x_u_i, x_r_i, y, max_len, U, config):
                   init_embeddings=U, 
                   filter_sizes=config["filter_sizes"], 
                   num_filters=config["num_filters"],
+                  batch_size=config["batch_size"],
                   embeddings_trainable=config["embeddings_trainable"])
     
     total_iter = config["total_iter"]
@@ -67,19 +68,21 @@ def train_cnn(x_u_i, x_r_i, y, max_len, U, config):
             feed_dict = {
                 cnn.input_x_u: x_u_batch, 
                 cnn.input_x_r: x_r_batch,
-                cnn.input_y: y_batch
+                cnn.input_y: y_batch,
+                cnn.dropout_keep_prob:0.7
             }
-            _, step, loss, accuracy, cosine, pred = sess.run(
-                [train_op, global_step, cnn.loss, cnn.accuracy, cnn.cosine, cnn.predictions], feed_dict)
+            _, step, loss, accuracy, u, r = sess.run(
+                [train_op, global_step, cnn.loss, cnn.accuracy, cnn.h_dropped_u, cnn.h_dropped_r], feed_dict)
+            #print u, r
             time_str = datetime.datetime.now().isoformat()
             if step % 50 == 0:
                 feed_dict = {
                     cnn.input_x_u: x_u_val,
                     cnn.input_x_r: x_r_val,
-                    cnn.input_y: y_val
+                    cnn.input_y: y_val,
+                    cnn.dropout_keep_prob:1
                 }
                 dev_loss, dev_accuracy = sess.run(
                     [cnn.loss, cnn.accuracy], feed_dict)
                 print("{}: step {}, train loss {:g}, train acc {:g}, dev loss {:g}, dev acc {:g}".format(
                         time_str, step, loss, accuracy, dev_loss, dev_accuracy))  
-                print pred[:5], y_batch[:5]
