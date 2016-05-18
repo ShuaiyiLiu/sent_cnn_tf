@@ -1,6 +1,54 @@
 import numpy as np
 import re
 
+def get_evaluation_examples_for_sent2vec(training_file_name, n_neg_sample=5):
+    neg_dict = {}
+    wqn_lst = []
+    x_u = []
+    x_r = []
+    y = []
+    with open(training_file_name) as tf:
+        for lines in tf:
+            # data -> [f1, u_str, r_str, WQ_NUM]
+            data = lines.split('\t')
+            f1 = float(data[0])
+            u_str = clean_str(data[1].strip())
+            r_str = data[2].strip()
+            wqn = data[3].strip()
+            
+            if f1 >= 0.5:
+                wqn_lst.append(wqn)
+                x_u.append(u_str)
+                x_r.append([r_str])
+            else:
+                if neg_dict.has_key(wqn):
+                    if len(neg_dict[wqn]) < n_neg_sample:
+                        neg_dict[wqn].append(r_str)
+                else:
+                    neg_dict[wqn] = [r_str]
+        for i in range(len(x_u)):
+            if not neg_dict.has_key(wqn_lst[i]):
+                neg_dict[wqn_lst[i]] = neg_dict[wqn_lst[0]]
+            if len(neg_dict[wqn_lst[i]]) < n_neg_sample:
+                neg_dict[wqn_lst[i]] += neg_dict[wqn_lst[0]][:n_neg_sample - len(neg_dict[wqn_lst[i]])]
+            if len(neg_dict[wqn_lst[i]]) != n_neg_sample:
+                print neg_dict[wqn_lst[i]]
+            x_r[i] = x_r[i] + neg_dict[wqn_lst[i]]
+            # add a little randomness 
+            y.append(np.random.randint(len(x_r[i])))
+            tmp = x_r[i][0]
+            x_r[i][0] = x_r[i][y[i]]
+            x_r[i][y[i]] = tmp
+    
+    with open("sent2vec.eval", 'w') as f:
+        for i, xu in enumerate(x_u):
+            for xr in x_r[i]:
+                line = ""
+                line = xu + '\t' + re.sub(r"\.", " ", xr) + '\n'
+                f.write(line)
+                
+    return x_u, x_r, y 
+
 def get_training_examples(training_file_name, n_neg=5000):
     """
     Load training data file, and split the data into words and labels.
@@ -74,6 +122,7 @@ def get_training_examples_for_softmax(training_file_name, n_neg_sample=5):
             if not neg_dict.has_key(wqn_lst[i]):
                 neg_dict[wqn_lst[i]] = neg_dict[wqn_lst[0]]
             if len(neg_dict[wqn_lst[i]]) < n_neg_sample:
+                # TODO: Add some randomness to this selection process
                 neg_dict[wqn_lst[i]] += neg_dict[wqn_lst[0]][:n_neg_sample - len(neg_dict[wqn_lst[i]])]
             if len(neg_dict[wqn_lst[i]]) != n_neg_sample:
                 print neg_dict[wqn_lst[i]]

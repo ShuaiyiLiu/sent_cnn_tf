@@ -5,10 +5,10 @@ config = {
     "embedding_size": 100,
     "num_classes": 6,
     "filter_sizes": [3, 4],
-    "num_filters": 3,
-    "dropout_keep_prob": 0.5,
-    "embeddings_trainable": False,
-    "total_iter": 5000,
-    "batch_size": 500,
-    "val_size": 500
+    "num_filters": 4,
+    "dropout_keep_prob": 0.85,
+    "embeddings_trainable": True,
+    "total_iter": 100000,
+    "batch_size": 400,
+    "val_size": 400
 }

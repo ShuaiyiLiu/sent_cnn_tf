@@ -85,7 +85,7 @@ class SentCNN(object):
                     padding="VALID",
                     name="conv-u")             
                 # Apply nonlinearity
-                h_u = tf.nn.relu(tf.nn.bias_add(conv_u, b), name="relu-u")
+                h_u = tf.nn.sigmoid(tf.nn.bias_add(conv_u, b), name="activation-u")
 
                 # Maxpooling over outputs
                 pooled_u = tf.nn.max_pool(
@@ -107,7 +107,7 @@ class SentCNN(object):
                         padding="VALID",
                         name="conv-r-%s" % j)
                     
-                    h_r_j = tf.nn.relu(tf.nn.bias_add(conv_r_j, b), name="relu-r-%s" % j)
+                    h_r_j = tf.nn.sigmoid(tf.nn.bias_add(conv_r_j, b), name="activation-r-%s" % j)
                     
                     pooled_r_j = tf.nn.max_pool(
                         h_r_j,
@@ -143,29 +143,30 @@ class SentCNN(object):
             self.h_features = tf.concat(1, [self.h_pool_flat_u, self.h_pool_flat_r])
             print "DEBUG: h_features -> %s" % self.h_features
             self.h_features_dropped = tf.nn.dropout(self.h_features, 
-                                                        self.dropout_keep_prob, 
-                                                        noise_shape=[batch_size, 1, num_filters_total])
+                                                    self.dropout_keep_prob, 
+                                                    noise_shape=[batch_size, 1, num_filters_total])
 
-            self.h_dropped_u = self.h_features_dropped[:, :1, :] + 0.05
-            self.h_dropped_r = self.h_features_dropped[:, 1:, :] + 0.05
+            self.h_dropped_u = self.h_features_dropped[:, :1, :]
+            self.h_dropped_r = self.h_features_dropped[:, 1:, :]
         
         # cosine layer - final scores and predictions
         with tf.name_scope("cosine_layer"):
-            dot =  tf.reduce_sum(tf.mul(self.h_dropped_u, 
+            self.dot =  tf.reduce_sum(tf.mul(self.h_dropped_u, 
                                         self.h_dropped_r), 2)
-            print "DEBUG: dot -> %s" % dot
-            sqrt_u = tf.sqrt(tf.reduce_sum(self.h_dropped_u**2, 2))
-            print "DEBUG: sqrt_u -> %s" % sqrt_u
-            sqrt_r = tf.sqrt(tf.reduce_sum(self.h_dropped_r**2, 2))
-            print "DEBUG: sqrt_r -> %s" % sqrt_r
-            self.cosine = dot / (sqrt_u * sqrt_r + 0.05)
+            print "DEBUG: dot -> %s" % self.dot
+            self.sqrt_u = tf.sqrt(tf.reduce_sum(self.h_dropped_u**2, 2))
+            print "DEBUG: sqrt_u -> %s" % self.sqrt_u
+            self.sqrt_r = tf.sqrt(tf.reduce_sum(self.h_dropped_r**2, 2))
+            print "DEBUG: sqrt_r -> %s" % self.sqrt_r
+            epsilon = 1e-5
+            self.cosine = tf.maximum(self.dot / (tf.maximum(self.sqrt_u * self.sqrt_r, epsilon)), epsilon)
             print "DEBUG: cosine -> %s" % self.cosine
             self.predictions = tf.argmax(self.cosine, 1, name="predictions")
             print "DEBUG: predictions -> %s" % self.predictions
         
         # softmax regression - loss and prediction
         with tf.name_scope("loss"):
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(100 * self.cosine, self.input_y)
+            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(50*self.cosine, self.input_y)
             self.loss = tf.reduce_mean(losses)
             
         # Calculate Accuracy
