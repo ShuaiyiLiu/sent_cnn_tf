@@ -43,7 +43,8 @@ def train_cnn(x_u_i, x_r_i, y, max_len, U, config, debug=True):
                   filter_sizes=config["filter_sizes"], 
                   num_filters=config["num_filters"],
                   batch_size=config["batch_size"],
-                  embeddings_trainable=config["embeddings_trainable"])
+                  embeddings_trainable=config["embeddings_trainable"],
+                  l2_reg_lambda=config["l2_reg_lambda"])
     
     total_iter = config["total_iter"]
     batch_size = config["batch_size"]
@@ -115,6 +116,7 @@ def train_cnn(x_u_i, x_r_i, y, max_len, U, config, debug=True):
                 cnn.input_x_r: x_r_batch,
                 cnn.input_y: y_batch,
                 cnn.dropout_keep_prob:config["dropout_keep_prob"]
+                
             }
             if debug == False:
                 _, step, summaries, loss, accuracy, u, r, dot, su, sr, cosine = sess.run(

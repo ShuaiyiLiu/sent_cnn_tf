@@ -15,7 +15,8 @@ class SentCNN(object):
                  filter_sizes, 
                  num_filters,
                  batch_size, # only need this for dropout layer
-                 embeddings_trainable=False):
+                 embeddings_trainable=False,
+                 l2_reg_lambda=0.0):
         """
         :param sequence_length: The length of our sentences. Here we always pad
         our sentences to have the same length (depending on the longest sentences
@@ -48,12 +49,17 @@ class SentCNN(object):
         
         self.embedding_size = np.shape(init_embeddings)[1]
         
+        # Keeping track of l2 regularization loss (optional)
+        l2_loss = tf.constant(0.0)
+        
         # Embedding layer
         with tf.name_scope("embedding"):
             W = tf.Variable(init_embeddings,
                             trainable=embeddings_trainable,
                             dtype=tf.float32,
                             name='W')
+            #l2_loss += tf.nn.l2_loss(W)
+
             # batch_size x sequence_length x embedding_size
             self.embedded_u = tf.nn.embedding_lookup(W, self.input_x_u)
             print "DEBUG: embedded_u -> %s" % self.embedded_u
@@ -78,6 +84,8 @@ class SentCNN(object):
                                 name='W')
                 b = tf.Variable(tf.constant(0.1, shape=[num_filters]), 
                                 name='b')
+                l2_loss += tf.nn.l2_loss(W)
+                l2_loss += tf.nn.l2_loss(b)
                 conv_u = tf.nn.conv2d(
                     self.embedded_u_expanded,
                     W,
@@ -166,8 +174,8 @@ class SentCNN(object):
         
         # softmax regression - loss and prediction
         with tf.name_scope("loss"):
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(50*self.cosine, self.input_y)
-            self.loss = tf.reduce_mean(losses)
+            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(100*self.cosine, self.input_y)
+            self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
             
         # Calculate Accuracy
         with tf.name_scope("accuracy"):

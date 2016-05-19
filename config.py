@@ -10,5 +10,6 @@ config = {
     "embeddings_trainable": True,
     "total_iter": 100000,
     "batch_size": 400,
-    "val_size": 400
+    "val_size": 400,
+    "l2_reg_lambda": 0.1
 }
